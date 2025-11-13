@@ -1,0 +1,10 @@
+{
+  "name": "reactnexttutorial",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm install --prefix lab-day2",
+    "build": "npm run build --prefix lab-day2",
+    "start": "npm run start --prefix lab-day2",
+    "test": "npm run test --prefix lab-day2"
+  }
+}

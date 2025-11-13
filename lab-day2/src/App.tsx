@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 
 interface SectionProps {
@@ -137,14 +137,105 @@ const MovieForm = () => {
 };
 
 const TimerSection = () => {
-  const [seconds, setSeconds] = useState<number>(0);
+  const [clickCount, setClickCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(true);
+  const [heartbeatSeconds, setHeartbeatSeconds] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => window.clearInterval(timer);
+  const pushLog = useCallback((entry: string) => {
+    setLogs((prev) => [entry, ...prev].slice(0, 6));
   }, []);
 
-  return <p className="timer">Seconds elapsed: {seconds}</p>;
+  useEffect(() => {
+    document.title = `Clicked ${clickCount} times`;
+    pushLog(`Synced document.title to "Clicked ${clickCount} times"`);
+  }, [clickCount, pushLog]);
+
+  useEffect(() => {
+    if (!isOnline) {
+      pushLog("Listener paused — effect skipped subscribing while offline.");
+      return;
+    }
+
+    pushLog("Subscribed to heartbeat interval — cleanup will clear it.");
+    const interval = window.setInterval(
+      () => setHeartbeatSeconds((prev) => prev + 1),
+      1000
+    );
+
+    return () => {
+      window.clearInterval(interval);
+      pushLog("Cleanup ran before the next effect to prevent duplicate intervals.");
+    };
+  }, [isOnline, pushLog]);
+
+  return (
+    <div className="effect-grid">
+      <div className="effect-card">
+        <h3>Sync the DOM with state</h3>
+        <p>
+          Updating <code>document.title</code> is a side effect because it happens
+          outside of React&apos;s render tree. <code>useEffect</code> lets us do it
+          after every successful render.
+        </p>
+        <div className="stack">
+          <p className="count-display">Click count: {clickCount}</p>
+          <div className="button-row">
+            <button onClick={() => setClickCount((prev) => prev + 1)}>
+              Increment
+            </button>
+            <button
+              className="ghost"
+              onClick={() => setClickCount(0)}
+              disabled={clickCount === 0}
+            >
+              Reset
+            </button>
+          </div>
+          <p className="supporting-text">
+            Every change updates the browser tab text so users always know what
+            happened—even if the component isn&apos;t visible.
+          </p>
+        </div>
+      </div>
+
+      <div className="effect-card">
+        <h3>Subscribe &amp; clean up listeners</h3>
+        <p>
+          Timers, sockets, and other subscriptions must be cleaned up to avoid
+          leaks. Here the effect resubscribes only while we&apos;re “online”.
+        </p>
+        <div className="stack">
+          <span className={`status-pill ${isOnline ? "online" : "offline"}`}>
+            {isOnline ? "Online" : "Offline"}
+          </span>
+          <p className="count-display">Heartbeat: {heartbeatSeconds}s</p>
+          <button onClick={() => setIsOnline((prev) => !prev)}>
+            {isOnline ? "Go offline" : "Go online"}
+          </button>
+          <p className="supporting-text">
+            Toggling forces the previous interval to clean up before React runs
+            the effect again, ensuring exactly one heartbeat listener.
+          </p>
+        </div>
+      </div>
+
+      <div className="effect-card logs">
+        <h3>What useEffect is doing</h3>
+        <p>
+          The log shows when effects run and when their cleanup executes, making
+          the lifecycle easier to reason about.
+        </p>
+        <ul className="log-list">
+          {logs.length === 0 ? (
+            <li>Interact with the examples to see effect logs.</li>
+          ) : (
+            logs.map((entry, index) => <li key={entry + index}>{entry}</li>)
+          )}
+        </ul>
+      </div>
+    </div>
+  );
 };
 
 interface SeatProps {
@@ -310,7 +401,7 @@ function App() {
         <Section
           id="section-5"
           title="useEffect Basics"
-          description="Side effects like timers rely on useEffect cleanup. Watch the seconds tick in real time."
+          description="See how useEffect syncs browser APIs and cleans up subscriptions with real-world side effects."
         >
           <TimerSection />
         </Section>
